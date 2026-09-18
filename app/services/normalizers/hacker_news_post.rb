@@ -9,6 +9,12 @@ module Normalizers
   class HackerNewsPost
     SOURCE_KEY = "hn_who_is_hiring".freeze
     LOCATION_NOISE = /\A(remote|onsite|visa|interns?|full[- ]time|part[- ]time)\z/i
+    # Currency symbol, a "<digits>k" shorthand (e.g. "80k", too short to trip
+    # the digit-run check below), or a run of 3+ consecutive digits (comma
+    # thousands separators like "230,000" always contain one either side of
+    # the comma).
+    COMPENSATION = /[$£€]|\d+k\b|\d{3,}/i
+    IGNORED_DOMAIN_HOSTS = %w[news.ycombinator.com].freeze
 
     def initialize(raw_hit)
       @raw_hit = raw_hit
@@ -32,9 +38,13 @@ module Normalizers
         @text ||= CGI.unescapeHTML(@payload["comment_text"].to_s)
       end
 
-      # The header is everything before the first paragraph break.
+      # Everything before the first paragraph break.
+      def header
+        @header ||= text.split(/<p>/).first.to_s
+      end
+
       def segments
-        @segments ||= text.split(/<p>/).first.to_s.split("|").map(&:strip)
+        @segments ||= header.split("|").map(&:strip)
       end
 
       def name
@@ -44,18 +54,35 @@ module Normalizers
         @name = raw.match?(/\A[[:alnum:]]/) && segments.length > 1 ? raw : nil
       end
 
+      # Algolia renders every URL in the header as an anchor, so an href
+      # attribute is the primary signal; a bare URL is a fallback for headers
+      # that skip the anchor. Either way, HN's own permalink is chrome, not
+      # the company's site.
       def domain
         return @domain if defined?(@domain)
 
-        url = segments.first.to_s[/\((https?:\/\/[^)\s]+)\)/, 1]
+        url = first_company_url(header.scan(/href="(https?:\/\/[^"]+)"/).flatten) ||
+              first_company_url(header.scan(/https?:\/\/[^\s()<>"]+/))
         @domain = url && URI.parse(url).host&.sub(/\Awww\./, "")
       rescue URI::InvalidURIError
         @domain = nil
       end
 
+      def first_company_url(urls)
+        urls.find { |url| !IGNORED_DOMAIN_HOSTS.include?(URI.parse(url).host&.downcase) }
+      end
+
       def location
-        @location ||= segments[1..].to_a.reverse.find do |segment|
-          segment.present? && !segment.match?(LOCATION_NOISE) && segment.length < 60 && segment.include?(",")
+        return @location if defined?(@location)
+
+        # segments[1] is conventionally the job title ("Company | Title | ...");
+        # exclude it so a comma inside a title (e.g. "Backend Engineer, Platform")
+        # never reads as a location. With fewer than 3 segments there's no
+        # separate title slot to exclude, so fall back to the original range.
+        candidates = segments.length >= 3 ? segments[2..] : segments[1..]
+        @location = candidates.to_a.reverse.find do |segment|
+          segment.present? && !segment.match?(LOCATION_NOISE) && segment.length < 60 &&
+            segment.include?(",") && !segment.match?(COMPENSATION)
         end
       end
 

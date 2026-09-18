@@ -66,6 +66,65 @@ class Normalizers::HackerNewsPostTest < ActiveSupport::TestCase
     assert_empty result.evidence_attrs
   end
 
+  # --- Task 6b: real thread formats -----------------------------------------
+  # Algolia renders every URL in the live thread as an <a href="..."> anchor,
+  # not the bare parenthesised URL the plan's idealised fixtures assumed.
+
+  test "extracts domain from an anchor href in a trailing pipe segment (Lumen Labs, live)" do
+    result = normalize(
+      "Lumen Labs | Robotics &#x2F; Hardware Engineer | San Francisco, CA | ONSITE | " \
+      "Full-time | $130k–200k + equity | <a href=\"https:&#x2F;&#x2F;lumenresearch.co\" " \
+      "rel=\"nofollow\">https:&#x2F;&#x2F;lumenresearch.co</a>"
+    )
+
+    assert_equal "lumenresearch.co", result.company_attrs[:domain]
+  end
+
+  test "extracts domain from a parenthesised anchor href (Tether, live)" do
+    # The brief's live excerpt is elided ("...") after "we're hiring!"; a trailing
+    # pipe segment is appended here only so the header has the >1 segments `name`
+    # requires, without altering the quoted anchor markup itself.
+    result = normalize(
+      "At Tether (<a href=\"https:&#x2F;&#x2F;tether.io&#x2F;\" rel=\"nofollow\">" \
+      "https:&#x2F;&#x2F;tether.io&#x2F;</a>) we&#x27;re hiring! | Founding Engineer | Remote"
+    )
+
+    assert_equal "tether.io", result.company_attrs[:domain]
+  end
+
+  test "does not treat a news.ycombinator.com link as the company domain" do
+    result = normalize(
+      "Globex Corp (<a href=\"https://news.ycombinator.com/item?id=12345\" rel=\"nofollow\">" \
+      "https://news.ycombinator.com/item?id=12345</a>) | Backend Engineer | Remote"
+    )
+
+    assert_nil result.company_attrs[:domain]
+  end
+
+  test "does not capture a salary range as the location (Anterior-shaped, live)" do
+    result = normalize(
+      "Anterior | Machine Learning Engineer | New York, NY | $230,000–$300,000 + equity | Onsite"
+    )
+
+    assert_equal "New York, NY", result.company_attrs[:location]
+  end
+
+  test "extracts the real location from the Lumen Labs header, not the compensation segment" do
+    result = normalize(
+      "Lumen Labs | Robotics &#x2F; Hardware Engineer | San Francisco, CA | ONSITE | " \
+      "Full-time | $130k–200k + equity | <a href=\"https:&#x2F;&#x2F;lumenresearch.co\" " \
+      "rel=\"nofollow\">https:&#x2F;&#x2F;lumenresearch.co</a>"
+    )
+
+    assert_equal "San Francisco, CA", result.company_attrs[:location]
+  end
+
+  test "does not capture the role slot as the location (Remote | Senior/Staff Backend Engineer, X shape)" do
+    result = normalize("Remote | Senior/Staff Backend Engineer, Platform | REMOTE | Full-time")
+
+    assert_nil result.company_attrs[:location]
+  end
+
   private
     def normalize(comment_text)
       raw_hit = @execution.raw_hits.create!(
