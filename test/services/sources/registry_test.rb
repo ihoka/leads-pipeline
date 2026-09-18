@@ -17,7 +17,7 @@ class Sources::RegistryTest < ActiveSupport::TestCase
   end
 
   setup { Sources::Registry.register(FakeAdapter) }
-  teardown { Sources::Registry.reset! }
+  teardown { Sources::Registry.load_defaults! }
 
   test "fetches a registered adapter by key" do
     assert_equal FakeAdapter, Sources::Registry.fetch("fake")

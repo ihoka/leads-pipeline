@@ -17,6 +17,11 @@ module Sources
 
       def reset! = @adapters = {}
 
+      def load_defaults!
+        reset!
+        register(HackerNewsWhoIsHiring)
+      end
+
       private
         def adapters = (@adapters ||= {})
     end
