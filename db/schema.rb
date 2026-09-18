@@ -10,9 +10,53 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_133656) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_18_134521) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "companies", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "domain"
+    t.datetime "first_seen_at"
+    t.string "industry"
+    t.string "location"
+    t.string "name"
+    t.integer "size_estimate"
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["workspace_id"], name: "index_companies_on_workspace_id"
+  end
+
+  create_table "company_identifiers", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.datetime "created_at", null: false
+    t.string "kind", null: false
+    t.datetime "updated_at", null: false
+    t.string "value", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["company_id"], name: "index_company_identifiers_on_company_id"
+    t.index ["workspace_id", "kind", "value"], name: "index_company_identifiers_uniqueness", unique: true
+    t.index ["workspace_id"], name: "index_company_identifiers_on_workspace_id"
+  end
+
+  create_table "evidences", force: :cascade do |t|
+    t.string "attribute_name", null: false
+    t.float "confidence"
+    t.datetime "created_at", null: false
+    t.datetime "fetched_at", null: false
+    t.bigint "raw_hit_id"
+    t.string "source_key", null: false
+    t.string "source_url"
+    t.bigint "subject_id", null: false
+    t.string "subject_type", null: false
+    t.datetime "updated_at", null: false
+    t.text "value"
+    t.bigint "workspace_id", null: false
+    t.index ["raw_hit_id"], name: "index_evidences_on_raw_hit_id"
+    t.index ["subject_type", "subject_id", "attribute_name"], name: "index_evidences_on_subject_and_attribute"
+    t.index ["subject_type", "subject_id"], name: "index_evidences_on_subject"
+    t.index ["workspace_id"], name: "index_evidences_on_workspace_id"
+  end
 
   create_table "icp_definitions", force: :cascade do |t|
     t.text "brief", null: false
@@ -24,6 +68,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_133656) do
     t.integer "version", null: false
     t.index ["search_id", "version"], name: "index_icp_definitions_on_search_id_and_version", unique: true
     t.index ["search_id"], name: "index_icp_definitions_on_search_id"
+  end
+
+  create_table "people", force: :cascade do |t|
+    t.bigint "company_id"
+    t.datetime "created_at", null: false
+    t.string "email"
+    t.string "linkedin_url"
+    t.string "name"
+    t.string "seniority"
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["company_id"], name: "index_people_on_company_id"
+    t.index ["workspace_id"], name: "index_people_on_workspace_id"
   end
 
   create_table "searches", force: :cascade do |t|
@@ -43,6 +101,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_133656) do
     t.datetime "updated_at", null: false
   end
 
+  add_foreign_key "companies", "workspaces"
+  add_foreign_key "company_identifiers", "companies"
+  add_foreign_key "company_identifiers", "workspaces"
+  add_foreign_key "evidences", "workspaces"
   add_foreign_key "icp_definitions", "searches"
+  add_foreign_key "people", "companies"
+  add_foreign_key "people", "workspaces"
   add_foreign_key "searches", "workspaces"
 end
