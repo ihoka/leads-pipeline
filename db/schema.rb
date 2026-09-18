@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_144122) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_18_144927) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -37,6 +37,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_144122) do
     t.index ["company_id"], name: "index_company_identifiers_on_company_id"
     t.index ["workspace_id", "kind", "value"], name: "index_company_identifiers_uniqueness", unique: true
     t.index ["workspace_id"], name: "index_company_identifiers_on_workspace_id"
+  end
+
+  create_table "cost_ledger_entries", force: :cascade do |t|
+    t.integer "cached_input_tokens", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.integer "input_tokens", default: 0, null: false
+    t.string "kind", null: false
+    t.string "model", null: false
+    t.integer "output_tokens", default: 0, null: false
+    t.bigint "subject_id"
+    t.string "subject_type"
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["subject_type", "subject_id"], name: "index_cost_ledger_entries_on_subject"
+    t.index ["workspace_id", "kind", "created_at"], name: "idx_on_workspace_id_kind_created_at_f049f399c8"
+    t.index ["workspace_id"], name: "index_cost_ledger_entries_on_workspace_id"
   end
 
   create_table "evidences", force: :cascade do |t|
@@ -200,6 +216,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_144122) do
   add_foreign_key "companies", "workspaces"
   add_foreign_key "company_identifiers", "companies"
   add_foreign_key "company_identifiers", "workspaces"
+  add_foreign_key "cost_ledger_entries", "workspaces"
   add_foreign_key "evidences", "raw_hits"
   add_foreign_key "evidences", "workspaces"
   add_foreign_key "icp_definitions", "searches"
