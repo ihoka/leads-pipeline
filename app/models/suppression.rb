@@ -9,6 +9,9 @@ class Suppression < ApplicationRecord
   validates :reason, inclusion: { in: REASONS }
   validate :domain_or_email_present
 
+  # Domain-only suppression check. Email-based suppressions are not enforced by this
+  # method and should not be relied on: person/email data is not ingested until
+  # Milestone 3, so an email-only opt-out cannot be matched against incoming leads yet.
   def self.suppressed?(workspace:, domain:)
     return false if domain.blank?
 
