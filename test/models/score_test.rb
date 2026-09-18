@@ -32,4 +32,13 @@ class ScoreTest < ActiveSupport::TestCase
                       total: 120, rationale: "r", model: "claude-opus-5")
     refute score.valid?
   end
+
+  test "destroying a lead with a score does not raise and removes the score" do
+    score = Score.create!(workspace: @workspace, lead: @lead, icp_definition: @icp,
+                          total: 80, rationale: "r", model: "claude-opus-5")
+
+    assert_nothing_raised { @lead.destroy! }
+
+    refute Score.exists?(score.id)
+  end
 end

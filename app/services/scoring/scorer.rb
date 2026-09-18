@@ -19,6 +19,8 @@ module Scoring
       )
 
       build_score(parsed)
+    rescue ActiveRecord::RecordInvalid, NoMethodError => error
+      raise ScoringFailed, "scoring lead #{@lead.id} produced an invalid record: #{error.class}: #{error.message}"
     end
 
     private
