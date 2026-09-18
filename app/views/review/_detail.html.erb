@@ -35,13 +35,13 @@
     <div class="actions">
       <%= button_to "Advance", decide_review_path(lead),
             params: { decision: "advance", reason_code: "other" },
-            data: { triage_target: "advance" } %>
+            data: { triage_target: "advance", turbo_frame: "_top" } %>
       <%= button_to "Disqualify", decide_review_path(lead),
             params: { decision: "disqualify", reason_code: "too_small" },
-            data: { triage_target: "disqualify" } %>
+            data: { triage_target: "disqualify", turbo_frame: "_top" } %>
       <%= button_to "Snooze", decide_review_path(lead),
             params: { decision: "snooze", reason_code: "not_now" },
-            data: { triage_target: "snooze" } %>
+            data: { triage_target: "snooze", turbo_frame: "_top" } %>
     </div>
   <% end %>
 </turbo-frame>
