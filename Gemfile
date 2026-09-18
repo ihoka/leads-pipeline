@@ -2,6 +2,11 @@ source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 8.1.3", ">= 8.1.3.1"
+# json 3.x changed JSON.parse to keyword-only options, which breaks
+# ActiveSupport::JSON.decode (positional options) on Rails 8.1.3.1 and
+# corrupts schema dumping for any jsonb column with a default. Pin below 3.0
+# until Rails ships a compatible call. See app/models/icp_definition.rb.
+gem "json", "< 3.0"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # Use postgresql as the database for Active Record
@@ -40,6 +45,9 @@ gem "thruster", require: false
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
 
+# Claude API client for scoring, dossiers, and drafting
+gem "anthropic", "~> 1.71"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
@@ -52,6 +60,8 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  gem "webmock", "~> 3.26", require: false
 end
 
 group :development do
