@@ -74,5 +74,7 @@ class RunSearchJob < ApplicationJob
       lead.lead_discoveries.create!(
         workspace: run.workspace, run: run, search: run.search, discovered_at: Time.current
       )
+
+      ScoreLeadJob.perform_later(lead, run.icp_definition)
     end
 end
