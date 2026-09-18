@@ -5,6 +5,9 @@ class Lead < ApplicationRecord
   belongs_to :company
   belongs_to :person, optional: true
   has_many :lead_discoveries, dependent: :destroy
+  has_many :scores, dependent: :destroy
 
   validates :status, inclusion: { in: STATUSES }
+
+  def latest_score = scores.order(created_at: :desc).first
 end

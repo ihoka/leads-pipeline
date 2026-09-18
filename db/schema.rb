@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_144927) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_18_145611) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -171,6 +171,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_144927) do
     t.index ["workspace_id"], name: "index_runs_on_workspace_id"
   end
 
+  create_table "scores", force: :cascade do |t|
+    t.bigint "cited_evidence_ids", default: [], null: false, array: true
+    t.float "confidence"
+    t.datetime "created_at", null: false
+    t.jsonb "dimensions", default: {}, null: false
+    t.text "flagged_reason"
+    t.bigint "icp_definition_id", null: false
+    t.bigint "lead_id", null: false
+    t.string "model", null: false
+    t.text "rationale"
+    t.integer "total", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["icp_definition_id"], name: "index_scores_on_icp_definition_id"
+    t.index ["lead_id", "created_at"], name: "index_scores_on_lead_id_and_created_at"
+    t.index ["lead_id"], name: "index_scores_on_lead_id"
+    t.index ["workspace_id"], name: "index_scores_on_workspace_id"
+  end
+
   create_table "search_sources", force: :cascade do |t|
     t.string "adapter_key", null: false
     t.jsonb "adapter_params", default: {}, null: false
@@ -236,6 +255,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_144927) do
   add_foreign_key "runs", "icp_definitions"
   add_foreign_key "runs", "searches"
   add_foreign_key "runs", "workspaces"
+  add_foreign_key "scores", "icp_definitions"
+  add_foreign_key "scores", "leads"
+  add_foreign_key "scores", "workspaces"
   add_foreign_key "search_sources", "searches"
   add_foreign_key "search_sources", "workspaces"
   add_foreign_key "searches", "workspaces"
