@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_135059) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_18_141558) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -70,6 +70,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_135059) do
     t.index ["search_id"], name: "index_icp_definitions_on_search_id"
   end
 
+  create_table "lead_discoveries", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "discovered_at", null: false
+    t.bigint "lead_id", null: false
+    t.bigint "run_id", null: false
+    t.bigint "search_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["lead_id"], name: "index_lead_discoveries_on_lead_id"
+    t.index ["run_id"], name: "index_lead_discoveries_on_run_id"
+    t.index ["search_id"], name: "index_lead_discoveries_on_search_id"
+    t.index ["workspace_id"], name: "index_lead_discoveries_on_workspace_id"
+  end
+
+  create_table "leads", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "person_id"
+    t.datetime "snoozed_until"
+    t.string "status", default: "new", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["company_id"], name: "index_leads_on_company_id"
+    t.index ["person_id"], name: "index_leads_on_person_id"
+    t.index ["workspace_id", "company_id"], name: "index_leads_on_workspace_id_and_company_id", unique: true
+    t.index ["workspace_id"], name: "index_leads_on_workspace_id"
+  end
+
   create_table "people", force: :cascade do |t|
     t.bigint "company_id"
     t.datetime "created_at", null: false
@@ -127,6 +155,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_135059) do
     t.index ["workspace_id"], name: "index_runs_on_workspace_id"
   end
 
+  create_table "search_sources", force: :cascade do |t|
+    t.string "adapter_key", null: false
+    t.jsonb "adapter_params", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.bigint "search_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["search_id", "adapter_key"], name: "index_search_sources_on_search_id_and_adapter_key", unique: true
+    t.index ["search_id"], name: "index_search_sources_on_search_id"
+    t.index ["workspace_id"], name: "index_search_sources_on_workspace_id"
+  end
+
   create_table "searches", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -150,6 +191,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_135059) do
   add_foreign_key "evidences", "raw_hits"
   add_foreign_key "evidences", "workspaces"
   add_foreign_key "icp_definitions", "searches"
+  add_foreign_key "lead_discoveries", "leads"
+  add_foreign_key "lead_discoveries", "runs"
+  add_foreign_key "lead_discoveries", "searches"
+  add_foreign_key "lead_discoveries", "workspaces"
+  add_foreign_key "leads", "companies"
+  add_foreign_key "leads", "people"
+  add_foreign_key "leads", "workspaces"
   add_foreign_key "people", "companies"
   add_foreign_key "people", "workspaces"
   add_foreign_key "raw_hits", "run_source_executions"
@@ -159,5 +207,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_135059) do
   add_foreign_key "runs", "icp_definitions"
   add_foreign_key "runs", "searches"
   add_foreign_key "runs", "workspaces"
+  add_foreign_key "search_sources", "searches"
+  add_foreign_key "search_sources", "workspaces"
   add_foreign_key "searches", "workspaces"
 end
