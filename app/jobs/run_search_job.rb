@@ -63,6 +63,11 @@ class RunSearchJob < ApplicationJob
     end
 
     def record_lead(run, company)
+      if Suppression.suppressed?(workspace: run.workspace, domain: company.domain)
+        run.record_stats!(:suppressed, 1)
+        return
+      end
+
       lead = Lead.find_or_create_by!(workspace: run.workspace, company: company)
       run.record_stats!(:leads_created, 1) if lead.previously_new_record?
 

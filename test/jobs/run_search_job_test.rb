@@ -70,6 +70,15 @@ class RunSearchJobTest < ActiveJob::TestCase
     assert_equal 1, @search.runs.sole.stats["leads_created"]
   end
 
+  test "does not create a lead for a suppressed domain" do
+    @workspace.suppressions.create!(domain: "acme.com", reason: "current_client")
+
+    RunSearchJob.perform_now(@search)
+
+    assert_equal 0, Lead.count
+    assert_equal 1, @search.runs.sole.stats["suppressed"]
+  end
+
   private
     def stub_hn
       stub_request(:get, STORIES_URL)

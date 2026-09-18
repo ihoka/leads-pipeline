@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_141558) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_18_144122) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -179,6 +179,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_141558) do
     t.index ["workspace_id"], name: "index_searches_on_workspace_id"
   end
 
+  create_table "suppressions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "domain"
+    t.string "email"
+    t.text "note"
+    t.string "reason", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["workspace_id", "domain"], name: "index_suppressions_on_workspace_id_and_domain"
+    t.index ["workspace_id"], name: "index_suppressions_on_workspace_id"
+  end
+
   create_table "workspaces", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -210,4 +222,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_141558) do
   add_foreign_key "search_sources", "searches"
   add_foreign_key "search_sources", "workspaces"
   add_foreign_key "searches", "workspaces"
+  add_foreign_key "suppressions", "workspaces"
 end
