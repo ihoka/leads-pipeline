@@ -37,4 +37,15 @@ class RunTest < ActiveSupport::TestCase
     assert_equal "failed", execution.status
     assert_equal "pending", @run.reload.status
   end
+
+  test "destroying a source execution with raw hits raises instead of cascading" do
+    execution = @run.run_source_executions.create!(workspace: @workspace, source_key: "hn_who_is_hiring")
+    hit = execution.raw_hits.create!(
+      workspace: @workspace, source_key: "hn_who_is_hiring", source_uid: "1",
+      payload: { "a" => 1 }, fetched_at: Time.current
+    )
+
+    assert_raises(ActiveRecord::DeleteRestrictionError) { execution.destroy! }
+    assert RawHit.exists?(hit.id)
+  end
 end

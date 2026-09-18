@@ -3,7 +3,7 @@ class RunSourceExecution < ApplicationRecord
 
   belongs_to :workspace
   belongs_to :run
-  has_many :raw_hits, dependent: :destroy
+  has_many :raw_hits, dependent: :restrict_with_exception
 
   validates :source_key, presence: true
   validates :status, inclusion: { in: STATUSES }
