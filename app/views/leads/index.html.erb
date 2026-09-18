@@ -1,0 +1,11 @@
+<h1>Leads <span><%= @leads.size %></span></h1>
+
+<ul class="leads">
+  <% @leads.each do |lead| %>
+    <li data-lead-id="<%= lead.id %>">
+      <%= link_to lead.company.name.presence || "Unnamed company", lead_path(lead) %>
+      <span class="domain"><%= lead.company.domain %></span>
+      <span class="status"><%= lead.status %></span>
+    </li>
+  <% end %>
+</ul>
