@@ -1,0 +1,15 @@
+<h1>Review queue <span class="count"><%= @leads.size %></span></h1>
+
+<% if @leads.empty? %>
+  <p class="empty">Nothing to review. The next run is scheduled for 3am.</p>
+<% else %>
+  <div class="triage" data-controller="triage" data-triage-selected-value="<%= @selected&.id %>">
+    <ol class="triage-list">
+      <% @leads.each do |lead| %>
+        <%= render "review/lead_row", lead: lead, selected: lead == @selected %>
+      <% end %>
+    </ol>
+
+    <%= render "review/detail", lead: @selected %>
+  </div>
+<% end %>

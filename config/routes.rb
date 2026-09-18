@@ -13,5 +13,8 @@ Rails.application.routes.draw do
   # root "posts#index"
 
   resources :leads, only: [ :index, :show ]
+  resources :review, only: [ :index, :show ] do
+    member { post :decide }
+  end
   root "leads#index"
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_145611) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_18_151739) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -142,6 +142,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_145611) do
     t.index ["workspace_id"], name: "index_raw_hits_on_workspace_id"
   end
 
+  create_table "review_decisions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "decided_at", null: false
+    t.string "decision", null: false
+    t.bigint "lead_id", null: false
+    t.text "note"
+    t.string "reason_code", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["lead_id"], name: "index_review_decisions_on_lead_id"
+    t.index ["workspace_id", "reason_code"], name: "index_review_decisions_on_workspace_id_and_reason_code"
+    t.index ["workspace_id"], name: "index_review_decisions_on_workspace_id"
+  end
+
   create_table "run_source_executions", force: :cascade do |t|
     t.integer "cost_cents", default: 0, null: false
     t.datetime "created_at", null: false
@@ -250,6 +264,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_145611) do
   add_foreign_key "people", "workspaces"
   add_foreign_key "raw_hits", "run_source_executions"
   add_foreign_key "raw_hits", "workspaces"
+  add_foreign_key "review_decisions", "leads"
+  add_foreign_key "review_decisions", "workspaces"
   add_foreign_key "run_source_executions", "runs"
   add_foreign_key "run_source_executions", "workspaces"
   add_foreign_key "runs", "icp_definitions"

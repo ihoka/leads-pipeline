@@ -6,6 +6,7 @@ class Lead < ApplicationRecord
   belongs_to :person, optional: true
   has_many :lead_discoveries, dependent: :destroy
   has_many :scores, dependent: :delete_all
+  has_many :review_decisions, dependent: :destroy
 
   validates :status, inclusion: { in: STATUSES }
 

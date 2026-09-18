@@ -1,0 +1,9 @@
+<li data-lead-id="<%= lead.id %>"
+    data-triage-target="row"
+    class="<%= "is-selected" if selected %>">
+  <%= link_to review_path(lead), data: { turbo_frame: "lead_detail" } do %>
+    <span class="score"><%= lead.latest_score&.total %></span>
+    <span class="name"><%= lead.company.name %></span>
+    <span class="domain"><%= lead.company.domain %></span>
+  <% end %>
+</li>
