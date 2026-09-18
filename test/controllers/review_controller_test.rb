@@ -45,6 +45,14 @@ class ReviewControllerTest < ActionDispatch::IntegrationTest
     assert_equal "too_small", ReviewDecision.sole.reason_code
   end
 
+  test "deciding without a reason code is rejected and leaves the lead untouched" do
+    post decide_review_url(@lead), params: { decision: "advance" }
+
+    assert_response :bad_request
+    assert_equal "new", @lead.reload.status
+    assert_empty ReviewDecision.all
+  end
+
   private
     def queued_lead(name, total)
       company = @workspace.companies.create!(name: name, domain: "acme.com")

@@ -16,7 +16,7 @@ class ReviewController < ApplicationController
     ReviewDecision.record!(
       lead: lead,
       decision: params.require(:decision),
-      reason_code: params.fetch(:reason_code, "other"),
+      reason_code: params.require(:reason_code),
       note: params[:note]
     )
 
