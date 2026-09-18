@@ -9,18 +9,19 @@ module Scoring
       @prompt = RubricPrompt.new(icp_definition)
     end
 
+    # The ledger entry is written as soon as the response arrives, before it is
+    # parsed: a response that cannot be parsed was still paid for, and the
+    # ledger is the only spend control we have. Under-reporting spend exactly
+    # when the model is misbehaving is the wrong way round.
     def call
       response = request
-      parsed = parse(response)
 
       CostLedgerEntry.record!(
         workspace: @lead.workspace, kind: "scoring",
         model: AnthropicClient.model, usage: response.usage, subject: @lead
       )
 
-      build_score(parsed)
-    rescue ActiveRecord::RecordInvalid, NoMethodError => error
-      raise ScoringFailed, "scoring lead #{@lead.id} produced an invalid record: #{error.class}: #{error.message}"
+      build_score(parse(response))
     end
 
     private
@@ -48,7 +49,7 @@ module Scoring
       end
 
       def build_score(parsed)
-        cited = Array(parsed["cited_evidence_ids"]).map(&:to_i)
+        cited = cited_evidence_ids(parsed)
 
         Score.create!(
           workspace: @lead.workspace,
@@ -62,6 +63,20 @@ module Scoring
           model: AnthropicClient.model,
           flagged_reason: EvidenceValidator.new(lead: @lead, cited_ids: cited).failure_reason
         )
+      rescue ActiveRecord::RecordInvalid => error
+        raise ScoringFailed, "scoring lead #{@lead.id} produced an invalid record: #{error.class}: #{error.message}"
+      end
+
+      # The model is schema-constrained but not schema-guaranteed: returning an
+      # object where cited_evidence_ids should be an array makes the coercion
+      # below raise. That one shape mismatch is a scoring failure; the rescue is
+      # kept this narrow so a NoMethodError anywhere else in this class is a bug
+      # and propagates loudly rather than being relabelled a scoring failure.
+      def cited_evidence_ids(parsed)
+        Array(parsed["cited_evidence_ids"]).map(&:to_i)
+      rescue NoMethodError => error
+        raise ScoringFailed,
+          "scoring lead #{@lead.id} returned unusable cited_evidence_ids: #{error.class}: #{error.message}"
       end
   end
 end

@@ -4,6 +4,9 @@ primary_region = "lhr"
 [build]
 
 [env]
+  # Basic auth credentials for the production app are secrets, not env vars:
+  # fly secrets set LEADS_PIPELINE_USER=... LEADS_PIPELINE_PASSWORD=...
+  # must be run before deploying, or the app will fail to boot.
   RAILS_ENV = "production"
   SOLID_QUEUE_IN_PUMA = "false"
 

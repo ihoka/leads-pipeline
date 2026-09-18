@@ -17,10 +17,20 @@ class RunSearchJob < ApplicationJob
 
     search.search_sources.enabled.each { |source| execute_source(run, source) }
 
-    run.update!(status: "completed", finished_at: Time.current)
+    run.update!(status: run_status(run), finished_at: Time.current)
   end
 
   private
+    # A run in which every source failed is a failed run. Reporting it as
+    # completed hides a wholly broken night behind an empty review queue, which
+    # looks exactly like a quiet night.
+    def run_status(run)
+      executions = run.run_source_executions.reload
+      return "completed" if executions.empty?
+
+      executions.all? { |execution| execution.status == "failed" } ? "failed" : "completed"
+    end
+
     def execute_source(run, source)
       execution = run.run_source_executions.create!(
         workspace: run.workspace, source_key: source.adapter_key, status: "running"
@@ -45,6 +55,15 @@ class RunSearchJob < ApplicationJob
       result = NORMALIZERS.fetch(source.adapter_key).new(raw_hit).call
       return if result.identifiers.empty?
 
+      # Checked before the company or its evidence is written: for an opted-out
+      # or do-not-contact company, storing that data every night is the thing
+      # the suppression exists to stop. The raw hit above is kept regardless —
+      # it is the immutable replay buffer.
+      if Suppression.suppressed?(workspace: run.workspace, domain: result.company_attrs[:domain])
+        run.record_stats!(:suppressed, 1)
+        return
+      end
+
       company = IdentityResolver.new(workspace: run.workspace)
         .resolve(identifiers: result.identifiers, attrs: result.company_attrs)
 
@@ -63,11 +82,6 @@ class RunSearchJob < ApplicationJob
     end
 
     def record_lead(run, company)
-      if Suppression.suppressed?(workspace: run.workspace, domain: company.domain)
-        run.record_stats!(:suppressed, 1)
-        return
-      end
-
       lead = Lead.find_or_create_by!(workspace: run.workspace, company: company)
       run.record_stats!(:leads_created, 1) if lead.previously_new_record?
 

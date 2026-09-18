@@ -52,15 +52,29 @@ class RunSearchJobTest < ActiveJob::TestCase
     assert_equal 2, LeadDiscovery.count
   end
 
-  test "records per-source failure without failing the run" do
+  test "marks the run failed when every source failed" do
     stub_request(:get, STORIES_URL).with(query: hash_including({})).to_return(status: 503)
 
     RunSearchJob.perform_now(@search)
     run = @search.runs.sole
 
-    assert_equal "completed", run.status
+    assert_equal "failed", run.status
     assert_equal "failed", run.run_source_executions.sole.status
     assert_match "503", run.run_source_executions.sole.error_message
+  end
+
+  test "keeps the run completed when one source fails and another succeeds" do
+    stub_request(:get, STORIES_URL).with(query: hash_including({})).to_return(status: 503)
+    Sources::Registry.register(QuietSource)
+    @search.search_sources.create!(workspace: @workspace, adapter_key: QuietSource.key)
+
+    RunSearchJob.perform_now(@search)
+    run = @search.runs.sole
+
+    assert_equal "completed", run.status
+    assert_equal %w[completed failed], run.run_source_executions.pluck(:status).sort
+  ensure
+    Sources::Registry.load_defaults!
   end
 
   test "records run statistics" do
@@ -70,13 +84,29 @@ class RunSearchJobTest < ActiveJob::TestCase
     assert_equal 1, @search.runs.sole.stats["leads_created"]
   end
 
-  test "does not create a lead for a suppressed domain" do
+  test "does not create a lead, company or evidence for a suppressed domain" do
     @workspace.suppressions.create!(domain: "acme.com", reason: "current_client")
 
     RunSearchJob.perform_now(@search)
 
     assert_equal 0, Lead.count
+    assert_equal 0, Company.count
+    assert_equal 0, Evidence.count
+    assert_equal 1, RawHit.count
     assert_equal 1, @search.runs.sole.stats["suppressed"]
+  end
+
+  # A second, always-successful source, so that "every source failed" can be
+  # told apart from "a source failed".
+  class QuietSource < Sources::Adapter
+    def self.key = "test_quiet"
+
+    def self.manifest
+      Sources::Manifest.new(accepted_params: [], returned_fields: [],
+                            cost_cents_per_call: 0, risk_level: :none)
+    end
+
+    def search(_params) = []
   end
 
   private

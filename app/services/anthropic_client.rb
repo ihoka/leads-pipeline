@@ -14,11 +14,13 @@ module AnthropicClient
     def reset! = @instance = nil
 
     private
+      # An exported-but-blank key is treated as unset: on Fly a blank secret
+      # would otherwise build a client that 401s on every call, which surfaces
+      # as zero scores and no signal at all.
       def api_key
-        ENV.fetch("ANTHROPIC_API_KEY") do
-          Rails.application.credentials.dig(:anthropic, :api_key) ||
-            raise("ANTHROPIC_API_KEY is not set")
-        end
+        ENV["ANTHROPIC_API_KEY"].presence ||
+          Rails.application.credentials.dig(:anthropic, :api_key).presence ||
+          raise("ANTHROPIC_API_KEY is not set")
       end
   end
 end

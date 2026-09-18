@@ -63,12 +63,52 @@ class ReviewQueueTest < ActiveSupport::TestCase
     assert_equal [ lead ], ReviewQueue.new(workspace: @workspace).leads
   end
 
+  test "excludes a lead whose current score is flagged" do
+    lead_with_score(90, flagged_reason: "model cited evidence ids that do not belong to this lead: 999")
+
+    assert_empty ReviewQueue.new(workspace: @workspace).leads
+  end
+
+  test "includes a lead whose current score is clean but whose earlier score was flagged" do
+    lead = lead_with_score(50, flagged_reason: "fabricated citation")
+    Score.create!(workspace: @workspace, lead: lead, icp_definition: @icp,
+                  total: 80, rationale: "rescored", model: "claude-opus-5")
+
+    assert_equal [ lead ], ReviewQueue.new(workspace: @workspace).leads
+  end
+
+  test "excludes a lead whose company domain was suppressed after discovery" do
+    lead = lead_with_score(80, domain: "acme.com")
+    assert_equal [ lead ], ReviewQueue.new(workspace: @workspace).leads
+
+    @workspace.suppressions.create!(domain: "ACME.com", reason: "opted_out")
+
+    assert_empty ReviewQueue.new(workspace: @workspace).leads
+  end
+
+  test "includes a lead whose company has no domain when a suppression exists" do
+    lead = lead_with_score(80)
+    @workspace.suppressions.create!(domain: "acme.com", reason: "opted_out")
+
+    assert_nil lead.company.domain
+    assert_equal [ lead ], ReviewQueue.new(workspace: @workspace).leads
+  end
+
+  test "ignores a suppression belonging to another workspace" do
+    lead = lead_with_score(80, domain: "acme.com")
+    other = Workspace.create!(name: "Other")
+    other.suppressions.create!(domain: "acme.com", reason: "opted_out")
+
+    assert_equal [ lead ], ReviewQueue.new(workspace: @workspace).leads
+  end
+
   private
-    def lead_with_score(total)
-      company = @workspace.companies.create!(name: "Co #{SecureRandom.hex(4)}")
+    def lead_with_score(total, domain: nil, flagged_reason: nil)
+      company = @workspace.companies.create!(name: "Co #{SecureRandom.hex(4)}", domain: domain)
       lead = Lead.create!(workspace: @workspace, company: company)
       Score.create!(workspace: @workspace, lead: lead, icp_definition: @icp,
-                    total: total, rationale: "r", model: "claude-opus-5")
+                    total: total, rationale: "r", model: "claude-opus-5",
+                    flagged_reason: flagged_reason)
       lead
     end
 end
