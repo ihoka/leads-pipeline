@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_134521) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_18_135059) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -84,6 +84,49 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_134521) do
     t.index ["workspace_id"], name: "index_people_on_workspace_id"
   end
 
+  create_table "raw_hits", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "fetched_at", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.bigint "run_source_execution_id", null: false
+    t.string "source_key", null: false
+    t.string "source_uid", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["run_source_execution_id"], name: "index_raw_hits_on_run_source_execution_id"
+    t.index ["workspace_id", "source_key", "source_uid"], name: "index_raw_hits_on_workspace_id_and_source_key_and_source_uid"
+    t.index ["workspace_id"], name: "index_raw_hits_on_workspace_id"
+  end
+
+  create_table "run_source_executions", force: :cascade do |t|
+    t.integer "cost_cents", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.integer "hits_count", default: 0, null: false
+    t.bigint "run_id", null: false
+    t.string "source_key", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["run_id"], name: "index_run_source_executions_on_run_id"
+    t.index ["workspace_id"], name: "index_run_source_executions_on_workspace_id"
+  end
+
+  create_table "runs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "finished_at"
+    t.bigint "icp_definition_id", null: false
+    t.bigint "search_id", null: false
+    t.datetime "started_at"
+    t.jsonb "stats", default: {}, null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "workspace_id", null: false
+    t.index ["icp_definition_id"], name: "index_runs_on_icp_definition_id"
+    t.index ["search_id"], name: "index_runs_on_search_id"
+    t.index ["workspace_id"], name: "index_runs_on_workspace_id"
+  end
+
   create_table "searches", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -104,9 +147,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_134521) do
   add_foreign_key "companies", "workspaces"
   add_foreign_key "company_identifiers", "companies"
   add_foreign_key "company_identifiers", "workspaces"
+  add_foreign_key "evidences", "raw_hits"
   add_foreign_key "evidences", "workspaces"
   add_foreign_key "icp_definitions", "searches"
   add_foreign_key "people", "companies"
   add_foreign_key "people", "workspaces"
+  add_foreign_key "raw_hits", "run_source_executions"
+  add_foreign_key "raw_hits", "workspaces"
+  add_foreign_key "run_source_executions", "runs"
+  add_foreign_key "run_source_executions", "workspaces"
+  add_foreign_key "runs", "icp_definitions"
+  add_foreign_key "runs", "searches"
+  add_foreign_key "runs", "workspaces"
   add_foreign_key "searches", "workspaces"
 end
