@@ -96,6 +96,39 @@ class RunSearchJobTest < ActiveJob::TestCase
     assert_equal 1, @search.runs.sole.stats["suppressed"]
   end
 
+  test "does not create a lead or write evidence when a name-only hit resolves onto an already-suppressed company" do
+    company = @workspace.companies.create!(name: "Acme Analytics", domain: "acme.com")
+    company.company_identifiers.create!(workspace: @workspace, kind: "normalized_name", value: "acme analytics")
+    @workspace.suppressions.create!(domain: "acme.com", reason: "current_client")
+
+    # Same company, matched by name — the header carries no URL, so the
+    # normalizer produces only a "normalized_name" identifier for this hit,
+    # no domain. This is the case IdentityResolverTest#"matches on any one of
+    # several identifiers" demonstrates resolving onto an existing company.
+    stub_request(:get, STORIES_URL)
+      .with(query: hash_including("tags" => "comment,story_49522897"))
+      .to_return(
+        body: {
+          nbPages: 1,
+          hits: [
+            {
+              objectID: "49523099", author: "ceo_acme",
+              comment_text: "Acme Analytics | Senior Rails Engineer | REMOTE | Bristol, UK<p>We are hiring.",
+              created_at: "2026-09-01T17:00:00Z", parent_id: 49522897,
+              story_id: 49522897, story_title: "Ask HN: Who is hiring? (September 2026)"
+            }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    RunSearchJob.perform_now(@search)
+
+    assert_equal 0, Lead.count
+    assert_equal 0, company.evidences.count
+    assert_equal 1, @search.runs.sole.stats["suppressed"]
+  end
+
   # A second, always-successful source, so that "every source failed" can be
   # told apart from "a source failed".
   class QuietSource < Sources::Adapter

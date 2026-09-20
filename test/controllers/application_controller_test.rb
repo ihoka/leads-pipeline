@@ -32,6 +32,9 @@ class ApplicationControllerTest < ActionDispatch::IntegrationTest
     assert_match(/if Rails\.env\.production\?\s+http_basic_authenticate_with\(/, source)
     assert_match(/name: ENV\.fetch\("LEADS_PIPELINE_USER"\)/, source)
     assert_match(/password: ENV\.fetch\("LEADS_PIPELINE_PASSWORD"\)/, source)
-    assert_no_match(/ENV\.fetch\("LEADS_PIPELINE_(USER|PASSWORD)",/, source)
+    # Catches both the comma form, ENV.fetch("X", "default"), and the block
+    # form, ENV.fetch("X") { "default" } — either would silently supply a
+    # default for a missing secret and reopen the deploy.
+    assert_no_match(/ENV\.fetch\("LEADS_PIPELINE_(USER|PASSWORD)"\)?\s*(,|\{)/, source)
   end
 end

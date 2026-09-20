@@ -67,6 +67,15 @@ class RunSearchJob < ApplicationJob
       company = IdentityResolver.new(workspace: run.workspace)
         .resolve(identifiers: result.identifiers, attrs: result.company_attrs)
 
+      # A hit with no domain of its own can still resolve by name onto a
+      # company created earlier that does have one, and that company may
+      # already be suppressed. Caught here, before evidence is written, so a
+      # name-only hit for an already-suppressed company never reaches the model.
+      if Suppression.suppressed?(workspace: run.workspace, domain: company.domain)
+        run.record_stats!(:suppressed, 1)
+        return
+      end
+
       create_evidence(run, company, result)
       record_lead(run, company)
     end
