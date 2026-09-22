@@ -27,15 +27,18 @@ class IdentityResolver
       end
     end
 
+    # An identifier matches only when its kind and value agree, so each one
+    # contributes its own (kind, value) pair and a match on any single pair
+    # resolves the company. Composed with #or rather than a hand-built
+    # "(kind, value) IN (...)" tuple list: the placeholder count varies with the
+    # number of identifiers, and generating that SQL by interpolation obscures
+    # -- to a reader and to Brakeman alike -- that no caller input reaches it.
     def find_by_identifiers(identifiers)
       return nil if identifiers.empty?
 
-      pairs = identifiers.map { |i| [ i[:kind].to_s, i[:value] ] }
-      placeholders = pairs.map { "(?, ?)" }.join(", ")
-
-      CompanyIdentifier
-        .where(workspace: @workspace)
-        .where("(kind, value) IN (#{placeholders})", *pairs.flatten)
+      identifiers
+        .map { |i| CompanyIdentifier.where(workspace: @workspace, kind: i[:kind].to_s, value: i[:value]) }
+        .reduce(:or)
         .first
         &.company
     end

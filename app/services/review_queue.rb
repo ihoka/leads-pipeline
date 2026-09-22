@@ -7,6 +7,22 @@ class ReviewQueue
   CAP = 20
   THRESHOLD = 40
 
+  # Suppression is checked at the surfacing point, not only at ingest: an
+  # opt-out recorded today has to remove the lead discovered yesterday. The
+  # comparison is case-insensitive to match Suppression.suppressed?, and a
+  # company with no domain can never match one, so it still surfaces.
+  #
+  # Held as a literal constant rather than built by interpolation so that it is
+  # self-evidently free of caller input -- to Brakeman as well as to a reader.
+  NOT_SUPPRESSED = <<~SQL.squish.freeze
+    NOT EXISTS (
+      SELECT 1 FROM suppressions
+      INNER JOIN companies ON lower(companies.domain) = lower(suppressions.domain)
+      WHERE suppressions.workspace_id = leads.workspace_id
+        AND companies.id = leads.company_id
+    )
+  SQL
+
   def initialize(workspace:)
     @workspace = workspace
   end
@@ -18,7 +34,7 @@ class ReviewQueue
       .joins(latest_score_join)
       .where("latest_scores.total >= ?", THRESHOLD)
       .where("latest_scores.flagged_reason IS NULL")
-      .where("NOT EXISTS (#{suppressed_company_sql})")
+      .where(NOT_SUPPRESSED)
       .includes(:company)
       .order(Arel.sql("latest_scores.total DESC"))
       .limit(CAP)
@@ -42,19 +58,6 @@ class ReviewQueue
           FROM scores
           ORDER BY lead_id, created_at DESC, id DESC
         ) AS latest_scores ON latest_scores.lead_id = leads.id
-      SQL
-    end
-
-    # Suppression is checked at the surfacing point, not only at ingest: an
-    # opt-out recorded today has to remove the lead discovered yesterday. The
-    # comparison is case-insensitive to match Suppression.suppressed?, and a
-    # company with no domain can never match one, so it still surfaces.
-    def suppressed_company_sql
-      <<~SQL.squish
-        SELECT 1 FROM suppressions
-        INNER JOIN companies ON lower(companies.domain) = lower(suppressions.domain)
-        WHERE suppressions.workspace_id = leads.workspace_id
-          AND companies.id = leads.company_id
       SQL
     end
 end
