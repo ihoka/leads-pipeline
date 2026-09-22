@@ -1,0 +1,156 @@
+require "test_helper"
+
+class RunSearchJobTest < ActiveJob::TestCase
+  STORIES_URL = "https://hn.algolia.com/api/v1/search_by_date"
+
+  setup do
+    @workspace = Workspace.create!(name: "Personal")
+    @search = @workspace.searches.create!(name: "HN", status: "active")
+    @search.icp_definitions.create!(brief: "Funded startups needing Rails help")
+    @search.search_sources.create!(workspace: @workspace, adapter_key: "hn_who_is_hiring")
+    stub_hn
+  end
+
+  test "creates a completed run pinned to the active icp definition" do
+    RunSearchJob.perform_now(@search)
+    run = @search.runs.sole
+
+    assert_equal "completed", run.status
+    assert_equal @search.active_icp_definition, run.icp_definition
+    assert run.finished_at.present?
+  end
+
+  test "stores raw hits verbatim" do
+    RunSearchJob.perform_now(@search)
+
+    assert_equal 1, RawHit.count
+    assert_equal "49523001", RawHit.sole.source_uid
+  end
+
+  test "creates a company with evidence for each attribute" do
+    RunSearchJob.perform_now(@search)
+    company = Company.sole
+
+    assert_equal "Acme Analytics", company.name
+    assert_equal "acme.com", company.domain
+    assert_equal %w[domain location name], company.evidences.order(:attribute_name).pluck(:attribute_name)
+  end
+
+  test "creates one lead and records its discovery" do
+    RunSearchJob.perform_now(@search)
+
+    assert_equal 1, Lead.count
+    assert_equal "new", Lead.sole.status
+    assert_equal @search, LeadDiscovery.sole.search
+  end
+
+  test "a second run does not duplicate the lead but records a second discovery" do
+    RunSearchJob.perform_now(@search)
+    RunSearchJob.perform_now(@search)
+
+    assert_equal 1, Lead.count
+    assert_equal 2, LeadDiscovery.count
+  end
+
+  test "marks the run failed when every source failed" do
+    stub_request(:get, STORIES_URL).with(query: hash_including({})).to_return(status: 503)
+
+    RunSearchJob.perform_now(@search)
+    run = @search.runs.sole
+
+    assert_equal "failed", run.status
+    assert_equal "failed", run.run_source_executions.sole.status
+    assert_match "503", run.run_source_executions.sole.error_message
+  end
+
+  test "keeps the run completed when one source fails and another succeeds" do
+    stub_request(:get, STORIES_URL).with(query: hash_including({})).to_return(status: 503)
+    Sources::Registry.register(QuietSource)
+    @search.search_sources.create!(workspace: @workspace, adapter_key: QuietSource.key)
+
+    RunSearchJob.perform_now(@search)
+    run = @search.runs.sole
+
+    assert_equal "completed", run.status
+    assert_equal %w[completed failed], run.run_source_executions.pluck(:status).sort
+  ensure
+    Sources::Registry.load_defaults!
+  end
+
+  test "records run statistics" do
+    RunSearchJob.perform_now(@search)
+
+    assert_equal 1, @search.runs.sole.stats["hits_found"]
+    assert_equal 1, @search.runs.sole.stats["leads_created"]
+  end
+
+  test "does not create a lead, company or evidence for a suppressed domain" do
+    @workspace.suppressions.create!(domain: "acme.com", reason: "current_client")
+
+    RunSearchJob.perform_now(@search)
+
+    assert_equal 0, Lead.count
+    assert_equal 0, Company.count
+    assert_equal 0, Evidence.count
+    assert_equal 1, RawHit.count
+    assert_equal 1, @search.runs.sole.stats["suppressed"]
+  end
+
+  test "does not create a lead or write evidence when a name-only hit resolves onto an already-suppressed company" do
+    company = @workspace.companies.create!(name: "Acme Analytics", domain: "acme.com")
+    company.company_identifiers.create!(workspace: @workspace, kind: "normalized_name", value: "acme analytics")
+    @workspace.suppressions.create!(domain: "acme.com", reason: "current_client")
+
+    # Same company, matched by name — the header carries no URL, so the
+    # normalizer produces only a "normalized_name" identifier for this hit,
+    # no domain. This is the case IdentityResolverTest#"matches on any one of
+    # several identifiers" demonstrates resolving onto an existing company.
+    stub_request(:get, STORIES_URL)
+      .with(query: hash_including("tags" => "comment,story_49522897"))
+      .to_return(
+        body: {
+          nbPages: 1,
+          hits: [
+            {
+              objectID: "49523099", author: "ceo_acme",
+              comment_text: "Acme Analytics | Senior Rails Engineer | REMOTE | Bristol, UK<p>We are hiring.",
+              created_at: "2026-09-01T17:00:00Z", parent_id: 49522897,
+              story_id: 49522897, story_title: "Ask HN: Who is hiring? (September 2026)"
+            }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    RunSearchJob.perform_now(@search)
+
+    assert_equal 0, Lead.count
+    assert_equal 0, company.evidences.count
+    assert_equal 1, @search.runs.sole.stats["suppressed"]
+  end
+
+  # A second, always-successful source, so that "every source failed" can be
+  # told apart from "a source failed".
+  class QuietSource < Sources::Adapter
+    def self.key = "test_quiet"
+
+    def self.manifest
+      Sources::Manifest.new(accepted_params: [], returned_fields: [],
+                            cost_cents_per_call: 0, risk_level: :none)
+    end
+
+    def search(_params) = []
+  end
+
+  private
+    def stub_hn
+      stub_request(:get, STORIES_URL)
+        .with(query: hash_including("tags" => "story,author_whoishiring"))
+        .to_return(body: file_fixture("hn_stories.json").read,
+                   headers: { "Content-Type" => "application/json" })
+      stub_request(:get, STORIES_URL)
+        .with(query: hash_including("tags" => "comment,story_49522897"))
+        .to_return(body: file_fixture("hn_comments.json").read,
+                   headers: { "Content-Type" => "application/json" })
+    end
+end

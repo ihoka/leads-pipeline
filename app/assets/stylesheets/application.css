@@ -8,3 +8,14 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+.triage { display: flex; gap: 1rem; align-items: flex-start; }
+.triage-list { flex: 0 0 40%; list-style: none; margin: 0; padding: 0; max-height: 80vh; overflow-y: auto; }
+.triage-list li { padding: 0.5rem; border-bottom: 1px solid #ddd; }
+.triage-list li.is-selected { background: #e8edff; box-shadow: inset 3px 0 0 #4a63d8; }
+.triage-list a { display: flex; gap: 0.5rem; text-decoration: none; color: inherit; }
+.triage-list .score { font-weight: 700; min-width: 2rem; }
+.triage-detail { flex: 1; }
+.triage-detail .total { font-size: 2rem; font-weight: 700; margin: 0; }
+.triage-detail .flagged { background: #ffe8e8; padding: 0.5rem; border-left: 3px solid #c33; }
+.actions { display: flex; gap: 0.5rem; margin-top: 1rem; }

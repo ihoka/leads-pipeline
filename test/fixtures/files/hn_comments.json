@@ -1,0 +1,23 @@
+{
+  "nbPages": 1,
+  "hits": [
+    {
+      "objectID": "49523001",
+      "author": "ceo_acme",
+      "comment_text": "Acme Analytics (https:&#x2F;&#x2F;acme.com) | Senior Rails Engineer | REMOTE | Bristol, UK<p>We are hiring.",
+      "created_at": "2026-09-01T16:00:00Z",
+      "parent_id": 49522897,
+      "story_id": 49522897,
+      "story_title": "Ask HN: Who is hiring? (September 2026)"
+    },
+    {
+      "objectID": "49523002",
+      "author": "someone",
+      "comment_text": "Is this remote only?",
+      "created_at": "2026-09-01T16:05:00Z",
+      "parent_id": 49523001,
+      "story_id": 49522897,
+      "story_title": "Ask HN: Who is hiring? (September 2026)"
+    }
+  ]
+}

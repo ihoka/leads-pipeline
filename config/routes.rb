@@ -11,4 +11,10 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
+
+  resources :leads, only: [ :index, :show ]
+  resources :review, only: [ :index, :show ] do
+    member { post :decide }
+  end
+  root "leads#index"
 end

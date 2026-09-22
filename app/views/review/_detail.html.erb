@@ -1,0 +1,47 @@
+<turbo-frame id="lead_detail" class="triage-detail">
+  <% if lead.nil? %>
+    <p class="empty">Nothing selected.</p>
+  <% else %>
+    <% score = lead.latest_score %>
+    <h2><%= lead.company.name %></h2>
+    <p class="meta"><%= lead.company.domain %> &middot; <%= lead.company.location %></p>
+
+    <% if score %>
+      <p class="total"><%= score.total %></p>
+
+      <% if score.flagged? %>
+        <p class="flagged">Flagged: <%= score.flagged_reason %></p>
+      <% end %>
+
+      <ul class="dimensions">
+        <% score.dimensions.each do |name, value| %>
+          <li><%= name %>: <%= value %>/10</li>
+        <% end %>
+      </ul>
+
+      <p class="rationale"><%= score.rationale %></p>
+    <% end %>
+
+    <h3>Evidence</h3>
+    <ul class="evidence">
+      <% lead.company.evidences.order(:attribute_name).each do |evidence| %>
+        <li>
+          <strong><%= evidence.attribute_name %></strong>: <%= evidence.value %>
+          <%= link_to evidence.source_key, evidence.source_url if evidence.source_url %>
+        </li>
+      <% end %>
+    </ul>
+
+    <div class="actions">
+      <%= button_to "Advance", decide_review_path(lead),
+            params: { decision: "advance", reason_code: "other" },
+            data: { triage_target: "advance", turbo_frame: "_top" } %>
+      <%= button_to "Disqualify", decide_review_path(lead),
+            params: { decision: "disqualify", reason_code: "too_small" },
+            data: { triage_target: "disqualify", turbo_frame: "_top" } %>
+      <%= button_to "Snooze", decide_review_path(lead),
+            params: { decision: "snooze", reason_code: "not_now" },
+            data: { triage_target: "snooze", turbo_frame: "_top" } %>
+    </div>
+  <% end %>
+</turbo-frame>

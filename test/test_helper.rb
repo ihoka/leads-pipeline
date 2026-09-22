@@ -1,6 +1,9 @@
 ENV["RAILS_ENV"] ||= "test"
+ENV["ANTHROPIC_API_KEY"] ||= "test-key"
 require_relative "../config/environment"
 require "rails/test_help"
+require "webmock/minitest"
+WebMock.disable_net_connect!(allow_localhost: true)
 
 module ActiveSupport
   class TestCase

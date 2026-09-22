@@ -1,0 +1,13 @@
+<h1><%= @lead.company.name %></h1>
+<p><%= @lead.company.domain %> &middot; <%= @lead.company.location %></p>
+
+<h2>Evidence</h2>
+<ul class="evidence">
+  <% @lead.company.evidences.order(:attribute_name).each do |evidence| %>
+    <li>
+      <strong><%= evidence.attribute_name %></strong>: <%= evidence.value %>
+      <%= link_to evidence.source_key, evidence.source_url %>
+      <time><%= evidence.fetched_at.to_fs(:short) %></time>
+    </li>
+  <% end %>
+</ul>
